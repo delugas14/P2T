@@ -43,10 +43,17 @@ public class TextGenerator {
     public String toText(String input, boolean surfaceOnly) throws Exception {
         String imperativeRole = "";
         ByteArrayInputStream is = new ByteArrayInputStream( input.getBytes() );
+
+        //An dieser Stelle muss Unterscheidung zwischen BPMN und PNML gemacht werden
+        //if pnml
         PNMLReader pnmlReader = new PNMLReader();
         PetriNet petriNet = pnmlReader.getPetriNetFromPNMLString(is);
         PetriNetToProcessConverter pnConverter = new PetriNetToProcessConverter();
         ProcessModel model = pnConverter.convertToProcess(petriNet);
+        //else
+
+
+        //ProcessModel model = BPNM.readString(petriNet);
 
         //check number splits/joins
         pnConverter.printConversion();
@@ -58,7 +65,6 @@ public class TextGenerator {
 
         // Annotate model
         model.annotateModel(lDeriver, lHelper);
-
         // Convert to RPST
         FormatConverter formatConverter = new FormatConverter();
         Process p = formatConverter.transformToRPSTFormat(model);
