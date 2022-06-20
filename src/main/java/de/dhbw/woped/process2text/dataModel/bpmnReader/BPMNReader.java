@@ -60,6 +60,7 @@ public class BPMNReader {
         To-Do:
             - Analysieren, ob im BPMN Format noch weitere Gateway-Operatoren? (Inklusives OR)
             - Pool und Lane des jeweiligen Gateways bestimmen --> Aufruf aus Pool und Lane Methode
+
         */
 
         NodeList list_AND = doc.getElementsByTagName("bpmn:parallelGateway");
