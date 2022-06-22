@@ -9,7 +9,6 @@ import de.dhbw.woped.process2text.dataModel.process.*;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,6 +20,8 @@ public class BPMNReader {
             Document doc = db.parse(input);
             doc.getDocumentElement().normalize();
             ProcessModel model = new ProcessModel();
+            extractPool(doc, model);
+            extractArc(doc, model);
 
 
 
@@ -30,13 +31,9 @@ public class BPMNReader {
         }
         return null;
     }
-    private static void extractFlow(Document doc, ProcessModel model){
 
-    }
-
-    private static void extractActivity(Document doc, ProcessModel model, String id, Pool pool, Lane lane){
-        //Liste aller Activities
-        NodeList list = doc.getElementById(pool.getBPMNId()).getChildNodes();
+    private static void extractActivity(Document doc, ProcessModel model, Pool pool, Lane lane){
+        NodeList list = doc.getElementById(pool.getName()).getChildNodes();
         String label;
         int type = 1;
         NodeList participants = doc.getElementsByTagName("bpmn:Participant");
@@ -58,8 +55,9 @@ public class BPMNReader {
     }
 
     private static void extractEvents(Document doc, ProcessModel model, Pool pool, Lane lane) {
-        NodeList start_event = doc.getElementsByTagName("bpmn:startEvent");
-        NodeList end_event = doc.getElementsByTagName("bpmn:endEvent");
+        Element helpPool = doc.getElementById(pool.getName());
+        NodeList start_event = helpPool.getElementsByTagName("bpmn:startEvent");
+        NodeList end_event = helpPool.getElementsByTagName("bpmn:endEvent");
         int newId;
 
         for (int i = 0; i < start_event.getLength(); i++) {
@@ -86,9 +84,9 @@ public class BPMNReader {
             - Pool und Lane des jeweiligen Gateways bestimmen --> Aufruf aus Pool und Lane Methode
 
         */
-
-        NodeList list_AND = doc.getElementsByTagName("bpmn:parallelGateway");
-        NodeList list_XOR = doc.getElementsByTagName("bpmn:exclusiveGateway");
+        Element helpPool = doc.getElementById(pool.getName());
+        NodeList list_AND = helpPool.getElementsByTagName("bpmn:parallelGateway");
+        NodeList list_XOR = helpPool.getElementsByTagName("bpmn:exclusiveGateway");
         //NodeList list_OR;
         int newId;
 
@@ -106,7 +104,35 @@ public class BPMNReader {
 
 
     }
+    private static void extractLane(Document doc, ProcessModel model, Pool pool){
+        Element helpPool = doc.getElementById(pool.getName());
 
+        NodeList lanes = helpPool.getElementsByTagName("bpmn:lane");
+        for (int i =0; i < lanes.getLength(); i++) {
+            Element frstNode = (Element) lanes.item(i);
+            Lane lane = new Lane(frstNode.getAttribute("name"), pool.getName());
+            model.addLane(frstNode.getAttribute("name"));
+            extractActivity(doc, model , pool, lane);
+            extractEvents(doc, model, pool, lane);
+            extractGateways(doc, model, pool, lane);
+        }
+    }
+    private static void extractPool(Document doc, ProcessModel model){
+        NodeList pools = doc.getElementsByTagName("bpmn:process");
+        for (int i =0; i < pools.getLength(); i++) {
+            Element frstNode = (Element) pools.item(i);
+            NodeList lanes = frstNode.getElementsByTagName("bpmn:laneSet");
+            Pool pool = new Pool(frstNode.getAttribute("id"));
+            model.addPool(frstNode.getAttribute("id"));
+            if (lanes.getLength() == 0){
+                extractActivity(doc, model , pool, null);
+                extractEvents(doc, model, pool, null);
+                extractGateways(doc, model, pool, null);
+            } else {
+                extractLane(doc, model, pool);
+            }
+        }
+    }
     private static void extractArc(Document doc, ProcessModel model) {
         NodeList list = doc.getElementsByTagName("bpmn:sequenceFlow");
         for (int i = 0; i < list.getLength(); i++) {

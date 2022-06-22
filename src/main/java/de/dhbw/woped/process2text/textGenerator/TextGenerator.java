@@ -1,5 +1,6 @@
 package de.dhbw.woped.process2text.textGenerator;
 
+import de.dhbw.woped.process2text.dataModel.bpmnReader.BPMNReader;
 import de.dhbw.woped.process2text.dataModel.process.ProcessModel;
 import de.hpi.bpt.graph.algo.rpst.RPST;
 import de.hpi.bpt.process.ControlFlow;
@@ -46,19 +47,19 @@ public class TextGenerator {
 
         //An dieser Stelle muss Unterscheidung zwischen BPMN und PNML gemacht werden
         //if pnml
-        PNMLReader pnmlReader = new PNMLReader();
-        PetriNet petriNet = pnmlReader.getPetriNetFromPNMLString(is);
-        PetriNetToProcessConverter pnConverter = new PetriNetToProcessConverter();
-        ProcessModel model = pnConverter.convertToProcess(petriNet);
+        //PNMLReader pnmlReader = new PNMLReader();
+        //PetriNet petriNet = pnmlReader.getPetriNetFromPNMLString(is);
+        //PetriNetToProcessConverter pnConverter = new PetriNetToProcessConverter();
+        //ProcessModel model = pnConverter.convertToProcess(petriNet);
         //else
 
-
-        //ProcessModel model = BPNM.readString(petriNet);
+        BPMNReader bpmnReader = new BPMNReader();
+        ProcessModel model = bpmnReader.getProcessModelFromBPMNString(is);
 
         //check number splits/joins
-        pnConverter.printConversion();
+        //pnConverter.printConversion();
 
-        HashMap<Integer, String> transformedElemsRev = pnConverter.transformedElemsRev;
+        //HashMap<Integer, String> transformedElemsRev = pnConverter.transformedElemsRev;
 
         EnglishLabelHelper lHelper = new EnglishLabelHelper();
         EnglishLabelDeriver lDeriver = new EnglishLabelDeriver(lHelper);
@@ -106,15 +107,16 @@ public class TextGenerator {
 
         // Realization
         SurfaceRealizer surfaceRealizer = new SurfaceRealizer();
-        String surfaceText = surfaceRealizer.realizeSentenceMap(sentencePlan, transformedElemsRev);
+        //String surfaceText = surfaceRealizer.realizeSentenceMap(sentencePlan, transformedElemsRev);
 
         // Cleaning
-        surfaceText = surfaceRealizer.postProcessText(surfaceText);
+        //surfaceText = surfaceRealizer.postProcessText(surfaceText);
 
         /*if (surfaceOnly) {
             return surfaceText;
         }*/
 
-        return surfaceText;
+        //return surfaceText;
+        return "help";
     }
 }

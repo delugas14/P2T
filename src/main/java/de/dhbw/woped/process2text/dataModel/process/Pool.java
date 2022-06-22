@@ -12,7 +12,7 @@ public class Pool {
         return name;
     }
 
-    public void addBPMNId (String id){
+    public void setBPMNId (String id){
         this.bpmnid = id;
     }
 
