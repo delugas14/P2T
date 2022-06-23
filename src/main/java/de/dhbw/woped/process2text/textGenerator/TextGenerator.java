@@ -47,11 +47,11 @@ public class TextGenerator {
 
         //An dieser Stelle muss Unterscheidung zwischen BPMN und PNML gemacht werden
         //if pnml
-        //PNMLReader pnmlReader = new PNMLReader();
-        //PetriNet petriNet = pnmlReader.getPetriNetFromPNMLString(is);
-        //PetriNetToProcessConverter pnConverter = new PetriNetToProcessConverter();
-        //ProcessModel model = pnConverter.convertToProcess(petriNet);
-        //else
+        /*PNMLReader pnmlReader = new PNMLReader();
+        PetriNet petriNet = pnmlReader.getPetriNetFromPNMLString(is);
+        PetriNetToProcessConverter pnConverter = new PetriNetToProcessConverter();
+        ProcessModel model = pnConverter.convertToProcess(petriNet);
+        */ //else
 
         BPMNReader bpmnReader = new BPMNReader();
         ProcessModel model = bpmnReader.getProcessModelFromBPMNString(is);
@@ -60,6 +60,12 @@ public class TextGenerator {
         //pnConverter.printConversion();
 
         //HashMap<Integer, String> transformedElemsRev = pnConverter.transformedElemsRev;
+        HashMap<Integer, String> transformedElemsRev = bpmnReader.transformedElemsRev;
+        for (Integer keys : transformedElemsRev.keySet()) {
+            System.out.println(keys);
+            System.out.println(transformedElemsRev.get(keys));
+
+        }
 
         EnglishLabelHelper lHelper = new EnglishLabelHelper();
         EnglishLabelDeriver lDeriver = new EnglishLabelDeriver(lHelper);
@@ -107,16 +113,15 @@ public class TextGenerator {
 
         // Realization
         SurfaceRealizer surfaceRealizer = new SurfaceRealizer();
-        //String surfaceText = surfaceRealizer.realizeSentenceMap(sentencePlan, transformedElemsRev);
+        String surfaceText = surfaceRealizer.realizeSentenceMap(sentencePlan, transformedElemsRev);
 
         // Cleaning
-        //surfaceText = surfaceRealizer.postProcessText(surfaceText);
+        surfaceText = surfaceRealizer.postProcessText(surfaceText);
 
         /*if (surfaceOnly) {
             return surfaceText;
         }*/
 
-        //return surfaceText;
-        return "help";
+        return surfaceText;
     }
 }
