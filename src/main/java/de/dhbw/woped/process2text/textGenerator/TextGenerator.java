@@ -26,6 +26,10 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
 
 public class TextGenerator {
     ////////////////////////////////////
@@ -44,23 +48,38 @@ public class TextGenerator {
     public String toText(String input, boolean surfaceOnly) throws Exception {
         String imperativeRole = "";
         ByteArrayInputStream is = new ByteArrayInputStream( input.getBytes() );
+        ByteArrayInputStream helpis = new ByteArrayInputStream( input.getBytes() );
+        DocumentBuilderFactory helpdbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilder helpdb = helpdbf.newDocumentBuilder();
+        Document helpdoc = helpdb.parse(helpis);
+        helpdoc.getDocumentElement().normalize();
+        NodeList isPnml = helpdoc.getElementsByTagName("pnml");
+        ProcessModel model;
+        HashMap<Integer, String> transformedElemsRev;
 
-        //An dieser Stelle muss Unterscheidung zwischen BPMN und PNML gemacht werden
-        //if pnml
-        /*PNMLReader pnmlReader = new PNMLReader();
-        PetriNet petriNet = pnmlReader.getPetriNetFromPNMLString(is);
-        PetriNetToProcessConverter pnConverter = new PetriNetToProcessConverter();
-        ProcessModel model = pnConverter.convertToProcess(petriNet);
-        */ //else
 
-        BPMNReader bpmnReader = new BPMNReader();
-        ProcessModel model = bpmnReader.getProcessModelFromBPMNString(is);
+        if(isPnml.getLength() > 0) {
+            PNMLReader pnmlReader = new PNMLReader();
+            PetriNet petriNet = pnmlReader.getPetriNetFromPNMLString(is);
+            PetriNetToProcessConverter pnConverter = new PetriNetToProcessConverter();
+            model = pnConverter.convertToProcess(petriNet);
+            transformedElemsRev = pnConverter.transformedElemsRev;
+            pnConverter.printConversion();
+            System.out.println("PNML");
+        } else {
+            BPMNReader bpmnReader = new BPMNReader();
+            model = bpmnReader.getProcessModelFromBPMNString(is);
+            transformedElemsRev = bpmnReader.transformedElemsRev;
+            System.out.println("BPMN");
+        }
+
+
 
         //check number splits/joins
-        //pnConverter.printConversion();
 
-        //HashMap<Integer, String> transformedElemsRev = pnConverter.transformedElemsRev;
-        HashMap<Integer, String> transformedElemsRev = bpmnReader.transformedElemsRev;
+
+        //HashMap<Integer, String>
+
         for (Integer keys : transformedElemsRev.keySet()) {
             System.out.println(keys);
             System.out.println(transformedElemsRev.get(keys));
