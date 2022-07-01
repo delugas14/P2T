@@ -24,11 +24,6 @@ public class BPMNReader {
             ProcessModel model = new ProcessModel();
             extractPool(doc, model);
             extractArc(doc, model);
-
-
-
-
-
             return model;
         }catch (Exception e) {
             e.printStackTrace();
@@ -57,7 +52,9 @@ public class BPMNReader {
                 for (int j = 0; j < activities.getLength(); j++) {
                     Element scdNode = (Element) activities.item(j);
                     if (scdNode.getTagName() == "bpmn:task") {
-                        model.addActivity(new Activity(model.getNewId(), scdNode.getAttribute("name"), lane, pool, type));
+                        Activity activity = new Activity(model.getNewId(), scdNode.getAttribute("name"), lane, pool, type);
+                        activity.addBPMNId(scdNode.getAttribute("id"));
+                        model.addActivity(activity);
                         this.transformedElemsRev.put(model.getNewId(), scdNode.getAttribute("id"));
                     }
 
@@ -74,15 +71,29 @@ public class BPMNReader {
             Node fstNode = list.item(i);
             Element helpPool = (Element) fstNode;
             if (helpPool.getAttribute("id") == pool.getName()) {
+                NodeList intermediate_event = helpPool.getElementsByTagName("bpmn:intermediateCatchEvent");
                 NodeList start_event = helpPool.getElementsByTagName("bpmn:startEvent");
                 NodeList end_event = helpPool.getElementsByTagName("bpmn:endEvent");
                 int newId;
+                for (int j = 0; j < intermediate_event.getLength(); j++){
+                    Node scdNode = intermediate_event.item(j);
+                    Element event = (Element) scdNode;
+                    newId = model.getNewId();
+                    Event interelement = new Event(newId, "", lane, pool, EventType.INTM_MSG_THR);
+                    interelement.addBPMNId(event.getAttribute("id"));
+                    model.addEvent(interelement);
+                    //model.addEvent(new Event(newId, "", lane, pool, EventType.START_EVENT));
+                    this.transformedElemsRev.put(model.getNewId(), event.getAttribute("id"));
+                }
 
                 for (int j = 0; j < start_event.getLength(); j++) {
                     Node scdNode = start_event.item(j);
                     Element event = (Element) scdNode;
                     newId = model.getNewId();
-                    model.addEvent(new Event(newId, "", lane, pool, EventType.START_EVENT));
+                    Gateway gateway = new Gateway(newId, "", lane, pool, 0);
+                    gateway.addBPMNId(event.getAttribute("id"));
+                    model.addGateway(gateway);
+                    //model.addEvent(new Event(newId, "", lane, pool, EventType.START_EVENT));
                     this.transformedElemsRev.put(model.getNewId(), event.getAttribute("id"));
                 }
 
@@ -90,7 +101,10 @@ public class BPMNReader {
                     Node scdNode = end_event.item(j);
                     Element event = (Element) scdNode;
                     newId = model.getNewId();
-                    model.addEvent(new Event(newId, "", lane, pool, EventType.END_EVENT));
+                    Activity activity = new Activity(newId, "complete process", lane, pool, 0);
+                    activity.addBPMNId(event.getAttribute("id"));
+                    model.addActivity(activity);
+                    //model.addEvent(new Event(newId, "", lane, pool, EventType.END_EVENT));
                     this.transformedElemsRev.put(model.getNewId(), event.getAttribute("id"));
                 }
             }
@@ -122,7 +136,9 @@ public class BPMNReader {
                     Node scdNode = list_AND.item(j);
                     Element gw = (Element) scdNode;
                     newId = model.getNewId();
-                    model.addGateway(new Gateway(newId, "", lane, pool, GatewayType.AND));
+                    Gateway gateway = new Gateway(newId, "", lane, pool, GatewayType.AND);
+                    gateway.addBPMNId(gw.getAttribute("id"));
+                    model.addGateway(gateway);
                     this.transformedElemsRev.put(model.getNewId(), gw.getAttribute("id"));
                 }
 
@@ -130,7 +146,9 @@ public class BPMNReader {
                     Node scdNode = list_XOR.item(j);
                     Element gw = (Element) scdNode;
                     newId = model.getNewId();
-                    model.addGateway(new Gateway(newId, "", lane, pool, GatewayType.XOR));
+                    Gateway gateway = new Gateway(newId, "", lane, pool, GatewayType.XOR);
+                    gateway.addBPMNId(gw.getAttribute("id"));
+                    model.addGateway(gateway);
                     this.transformedElemsRev.put(model.getNewId(), gw.getAttribute("id"));
                 }
             }
@@ -189,37 +207,45 @@ public class BPMNReader {
             HashMap<Integer, Gateway> gateways = model.getGateways();
             for (Map.Entry e : activities.entrySet()) {
                 Activity activity = (Activity) e.getValue();
-                if (activity.getLabel() == sourceRef) {
+                if (activity.getBpmnId().equals(sourceRef)) {
                     source = activity;
                 }
-                if (activity.getLabel() == targetRef) {
+                if (activity.getBpmnId().equals(targetRef)) {
                     target = activity;
                 }
             }
             if (source == (null) || target == (null)) {
                 for (Map.Entry e : events.entrySet()) {
                     Event event = (Event) e.getValue();
-                    if (event.getLabel() == sourceRef) {
+                    if (event.getBpmnId().equals(sourceRef)) {
                         source = event;
                     }
-                    if (event.getLabel() == targetRef) {
+                    if (event.getBpmnId().equals(targetRef)) {
                         target = event;
                     }
                 }
                 if (source == (null) || target == (null)) {
                     for (Map.Entry e : gateways.entrySet()) {
                         Gateway gateway = (Gateway) e.getValue();
-                        if (gateway.getLabel() == sourceRef) {
+                        if (gateway.getBpmnId().equals(sourceRef)) {
                             source = gateway;
                         }
-                        if (gateway.getLabel() == targetRef) {
+                        if (gateway.getBpmnId().equals(targetRef)) {
                             target = gateway;
                         }
                     }
+                    if (source == (null)) {
+                        System.out.println("*****************************************************");
+                        System.out.println("Missing Source: " + sourceRef);
+                    }
+                    if (target == (null)) {
+                        System.out.println("Missing Target: " + targetRef);
+                    }
                 }
-                model.addArc(new Arc(model.getNewId(), label, source, target));
-                this.transformedElemsRev.put(model.getNewId(), arc.getAttribute("id"));
+
             }
+            model.addArc(new Arc(model.getNewId(), label, source, target));
+            this.transformedElemsRev.put(model.getNewId(), arc.getAttribute("id"));
         }
     }
 

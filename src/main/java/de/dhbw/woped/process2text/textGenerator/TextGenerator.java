@@ -1,6 +1,9 @@
 package de.dhbw.woped.process2text.textGenerator;
 
 import de.dhbw.woped.process2text.dataModel.bpmnReader.BPMNReader;
+import de.dhbw.woped.process2text.dataModel.process.Arc;
+import de.dhbw.woped.process2text.dataModel.process.Activity;
+import de.dhbw.woped.process2text.dataModel.process.Gateway;
 import de.dhbw.woped.process2text.dataModel.process.ProcessModel;
 import de.hpi.bpt.graph.algo.rpst.RPST;
 import de.hpi.bpt.process.ControlFlow;
@@ -72,7 +75,6 @@ public class TextGenerator {
             transformedElemsRev = bpmnReader.transformedElemsRev;
             System.out.println("BPMN");
         }
-
 
 
         //check number splits/joins
