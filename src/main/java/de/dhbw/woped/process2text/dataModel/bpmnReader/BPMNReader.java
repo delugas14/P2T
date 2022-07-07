@@ -13,68 +13,85 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BPMNReader {
+
     public HashMap<Integer, String> transformedElemsRev;
-    public ProcessModel getProcessModelFromBPMNString(InputStream input){
+
+    public ProcessModel getProcessModelFromBPMNString(InputStream input) {
         try {
             transformedElemsRev = new HashMap<>();
+            //Umwandlung des Inputstream in die Klasse Document zur einfacheren Weiterverarbeitung
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             DocumentBuilder db = dbf.newDocumentBuilder();
             Document doc = db.parse(input);
             doc.getDocumentElement().normalize();
+
+            //Initialisierung des ProcessModels
             ProcessModel model = new ProcessModel();
+            //Aufruf von Extractpool --> ruft alle anderen Extractmethoden außer extractArc auf
             extractPool(doc, model);
             extractArc(doc, model);
             return model;
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    private void extractActivity(Document doc, ProcessModel model, Pool pool, Lane lane){
-        String label;
-        int type = 1;
-        NodeList participants = doc.getElementsByTagName("bpmn:Participant");
-        for (int i = 0; i < participants.getLength(); i++) {
-            Element participant = (Element) participants.item(i);
-            if (participant.getAttribute("processRef") == pool.getBPMNId()) {
-                if (participant.getAttribute("name") == "Company" || participant.getAttribute("name") == "User") {
-                    type = 2;
+    private void extractActivity(Document doc, ProcessModel model, Element poolElement, Pool pool, Element laneElement, Lane lane) {
+                //Bestimmung der Art der Activities im Pool
+                int type = 1;
+                NodeList participants = doc.getElementsByTagName("bpmn:Participant");
+                for (int j = 0; j < participants.getLength(); j++) {
+                    Element participant = (Element) participants.item(j);
+                    if (participant.getAttribute("processRef") == pool.getBPMNId()) {
+                        if (participant.getAttribute("name") == "Company" || participant.getAttribute("name") == "User") {
+                            type = 2;
+                        }
+                    }
                 }
-            }
-        }
-        NodeList list = doc.getElementsByTagName("bpmn:process");
-        for (int i = 0; i < list.getLength(); i++) {
-            Node fstNode = list.item(i);
-            Element helpPool = (Element) fstNode;
-            if (helpPool.getAttribute("id") == pool.getName()) {
-                NodeList activities = helpPool.getElementsByTagName("bpmn:task");
+                NodeList flowNodes = null;
+                //Überprüfen ob lane vorhanden ist
+                if (lane != null) {
+                            //extrahieren der Elemente innerhalb der Lane
+                            flowNodes = laneElement.getElementsByTagName("bpmn:flowNodeRef");
+
+                }
+                //Durchlaufen aller Activities im Pool,
+                NodeList activities = poolElement.getElementsByTagName("bpmn:task");
                 for (int j = 0; j < activities.getLength(); j++) {
                     Element scdNode = (Element) activities.item(j);
-                    if (scdNode.getTagName() == "bpmn:task") {
+                    boolean inLane = false;
+                    //Überprüfen, ob es eine Lane gibt
+                    if(flowNodes != null){
+                        //Überprüfen, ob activity in der Lane ist
+                    for (int k = 0; k < flowNodes.getLength(); k++) {
+                        if (flowNodes.item(k).getTextContent().equals(scdNode.getAttribute("id"))) {
+                            inLane = true;
+                            break;
+                        }
+                    }}
+                    if (inLane || flowNodes.getLength() < 0) {
+                        //erstellen der Activity, hinzufügen in model und transformedElemsRev
                         Activity activity = new Activity(model.getNewId(), scdNode.getAttribute("name"), lane, pool, type);
                         activity.addBPMNId(scdNode.getAttribute("id"));
                         model.addActivity(activity);
                         this.transformedElemsRev.put(model.getNewId(), scdNode.getAttribute("id"));
                     }
-
                 }
-            }
-        }
-
-
     }
 
-    private void extractEvents(Document doc, ProcessModel model, Pool pool, Lane lane) {
-        NodeList list = doc.getElementsByTagName("bpmn:process");
-        for (int i = 0; i < list.getLength(); i++) {
-            Node fstNode = list.item(i);
-            Element helpPool = (Element) fstNode;
-            if (helpPool.getAttribute("id") == pool.getName()) {
-                NodeList intermediate_event = helpPool.getElementsByTagName("bpmn:intermediateCatchEvent");
-                NodeList start_event = helpPool.getElementsByTagName("bpmn:startEvent");
-                NodeList end_event = helpPool.getElementsByTagName("bpmn:endEvent");
+
+
+    private void extractEvents(Document doc, ProcessModel model, Element poolElement, Pool pool, Lane lane) {
+                //Anlegen von Listen für die verschiedenen Eventarten
+                NodeList intermediate_event = poolElement.getElementsByTagName("bpmn:intermediateCatchEvent");
+                NodeList start_event = poolElement.getElementsByTagName("bpmn:startEvent");
+                NodeList end_event = poolElement.getElementsByTagName("bpmn:endEvent");
                 int newId;
+                //Durchlaufen der verschiedenen Eventarten, erstellen der einzelnen Events, einfügen in model und
+                //transformedElemsRev
+
+                //intermediateCatchEvents
                 for (int j = 0; j < intermediate_event.getLength(); j++){
                     Node scdNode = intermediate_event.item(j);
                     Element event = (Element) scdNode;
@@ -86,6 +103,7 @@ public class BPMNReader {
                     this.transformedElemsRev.put(model.getNewId(), event.getAttribute("id"));
                 }
 
+                //Startevent wird als Gateway abgespeichert (analog zur PNML-Klasse)
                 for (int j = 0; j < start_event.getLength(); j++) {
                     Node scdNode = start_event.item(j);
                     Element event = (Element) scdNode;
@@ -97,6 +115,7 @@ public class BPMNReader {
                     this.transformedElemsRev.put(model.getNewId(), event.getAttribute("id"));
                 }
 
+                //Endevent wird als Activity abgespeichert (analog zur PNML-Klasse)
                 for (int j = 0; j < end_event.getLength(); j++) {
                     Node scdNode = end_event.item(j);
                     Element event = (Element) scdNode;
@@ -107,31 +126,21 @@ public class BPMNReader {
                     //model.addEvent(new Event(newId, "", lane, pool, EventType.END_EVENT));
                     this.transformedElemsRev.put(model.getNewId(), event.getAttribute("id"));
                 }
-            }
-        }
 
 
 
 
     }
-    private void extractGateways(Document doc, ProcessModel model, Pool pool, Lane lane){
-
-        /*
-        To-Do:
-            - Analysieren, ob im BPMN Format noch weitere Gateway-Operatoren? (Inklusives OR)
-            - Pool und Lane des jeweiligen Gateways bestimmen --> Aufruf aus Pool und Lane Methode
-
-        */
-        NodeList list = doc.getElementsByTagName("bpmn:process");
-        for (int i = 0; i < list.getLength(); i++) {
-            Node fstNode = list.item(i);
-            Element helpPool = (Element) fstNode;
-            if (helpPool.getAttribute("id") == pool.getName()) {
-                NodeList list_AND = helpPool.getElementsByTagName("bpmn:parallelGateway");
-                NodeList list_XOR = helpPool.getElementsByTagName("bpmn:exclusiveGateway");
-                //NodeList list_OR;
+    private void extractGateways(Document doc, ProcessModel model, Element poolElement, Pool pool, Lane lane){
+                //Anlegen von Listen für die verschiedenen Gateway-Arten
+                NodeList list_AND = poolElement.getElementsByTagName("bpmn:parallelGateway");
+                NodeList list_XOR = poolElement.getElementsByTagName("bpmn:exclusiveGateway");
                 int newId;
 
+                //Durchlaufen der verschiedenen Gatewayarten, erstellen der einzelnen Gateways, einfügen in model und
+                //transformedElemsRev
+
+                //AND-Gateway
                 for (int j = 0; j < list_AND.getLength(); j++) {
                     Node scdNode = list_AND.item(j);
                     Element gw = (Element) scdNode;
@@ -142,6 +151,7 @@ public class BPMNReader {
                     this.transformedElemsRev.put(model.getNewId(), gw.getAttribute("id"));
                 }
 
+                //XOR-Gateway
                 for (int j = 0; j < list_XOR.getLength(); j++) {
                     Node scdNode = list_XOR.item(j);
                     Element gw = (Element) scdNode;
@@ -151,44 +161,39 @@ public class BPMNReader {
                     model.addGateway(gateway);
                     this.transformedElemsRev.put(model.getNewId(), gw.getAttribute("id"));
                 }
-            }
-        }
 
 
     }
-    private void extractLane(Document doc, ProcessModel model, Pool pool){
-        NodeList list = doc.getElementsByTagName("bpmn:process");
-        for (int i = 0; i < list.getLength(); i++) {
-            Node fstNode = list.item(i);
-            Element helpPool = (Element) fstNode;
-            if (helpPool.getAttribute("id") == pool.getName()) {
-                NodeList lanes = helpPool.getElementsByTagName("bpmn:lane");
+    private void extractLane(Document doc, ProcessModel model, Element poolElement, Pool pool){
+                //Anlegen einer Liste aller Lanes innerhalb des Pools
+                NodeList lanes = poolElement.getElementsByTagName("bpmn:lane");
+                //erstellen der einzelnen Lanes, einfügen in model und
+                //transformedElemsRev, aufruf der übrigen extract-Methoden
                 for (int j = 0; j < lanes.getLength(); j++) {
-                    Element frstNode = (Element) lanes.item(j);
-                    Lane lane = new Lane(frstNode.getAttribute("name"), pool.getName());
-                    model.addLane(frstNode.getAttribute("name"));
-                    this.transformedElemsRev.put(model.getNewId(), frstNode.getAttribute("id"));
-                    extractActivity(doc, model, pool, lane);
-                    extractEvents(doc, model, pool, lane);
-                    extractGateways(doc, model, pool, lane);
+                    Element laneElement = (Element) lanes.item(j);
+                    Lane lane = new Lane(laneElement.getAttribute("name"), pool.getName());
+                    lane.addBPMNId(laneElement.getAttribute("id"));
+                    model.addLane(laneElement.getAttribute("name"));
+                    this.transformedElemsRev.put(model.getNewId(), laneElement.getAttribute("id"));
+                    extractActivity(doc, model,poolElement, pool,laneElement, lane);
+                    extractEvents(doc, model,poolElement, pool, lane);
+                    extractGateways(doc, model,poolElement, pool, lane);
                 }
-            }
-        }
     }
     private void extractPool(Document doc, ProcessModel model){
         NodeList pools = doc.getElementsByTagName("bpmn:process");
         for (int i =0; i < pools.getLength(); i++) {
-            Element frstNode = (Element) pools.item(i);
-            NodeList lanes = frstNode.getElementsByTagName("bpmn:laneSet");
-            Pool pool = new Pool(frstNode.getAttribute("id"));
-            model.addPool(frstNode.getAttribute("id"));
-            this.transformedElemsRev.put(model.getNewId(), frstNode.getAttribute("id"));
+            Element poolElement = (Element) pools.item(i);
+            NodeList lanes = poolElement.getElementsByTagName("bpmn:laneSet");
+            Pool pool = new Pool(poolElement.getAttribute("id"));
+            model.addPool(poolElement.getAttribute("id"));
+            this.transformedElemsRev.put(model.getNewId(), poolElement.getAttribute("id"));
             if (lanes.getLength() == 0){
-                extractActivity(doc, model , pool, null);
-                extractEvents(doc, model, pool, null);
-                extractGateways(doc, model, pool, null);
+                extractActivity(doc, model ,poolElement, pool, null, null);
+                extractEvents(doc, model, poolElement, pool, null);
+                extractGateways(doc, model, poolElement, pool, null);
             } else {
-                extractLane(doc, model, pool);
+                extractLane(doc, model, poolElement, pool);
             }
         }
     }
@@ -233,13 +238,6 @@ public class BPMNReader {
                         if (gateway.getBpmnId().equals(targetRef)) {
                             target = gateway;
                         }
-                    }
-                    if (source == (null)) {
-                        System.out.println("*****************************************************");
-                        System.out.println("Missing Source: " + sourceRef);
-                    }
-                    if (target == (null)) {
-                        System.out.println("Missing Target: " + targetRef);
                     }
                 }
 
